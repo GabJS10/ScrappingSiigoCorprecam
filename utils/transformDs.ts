@@ -23,14 +23,10 @@ export function transfromDs(
     };
   });
 
-  const micro = micros.find(
-    (micro) => String(micro.mic_codigo) === compra.com_micro_ruta
-  );
-
   return [
     {
       proveedor_id: compra.comp_asociado,
-      micro_id: String(micro?.mic_codigo) || "",
+      micro_id: String(micros[0].mic_nom) || "",
       productos,
     },
   ];

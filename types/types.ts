@@ -39,5 +39,6 @@ export interface Products {
 export interface DocumentoSoporte {
   proveedor_id: string;
   micro_id: string;
-  productos: Products[];
+  corprecam: Products[];
+  reciclemos: Products[];
 }

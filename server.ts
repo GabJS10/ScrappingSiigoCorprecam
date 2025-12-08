@@ -33,7 +33,7 @@ app.post("/scrapping", async (req, res) => {
 
   const ds = transfromDs(compra[0], compraItems, materiales, micro);
 
-  console.log(JSON.stringify(ds));
+  await run_playwright(ds);
 
   return res.json({
     message: "ok",

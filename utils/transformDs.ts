@@ -5,7 +5,7 @@ import {
   type Micro,
   type DocumentoSoporte,
 } from "../types/types.ts";
-
+import { agregarEspacios } from "./agregarEspacios.ts";
 interface Products {
   codigo: string;
   cantidad: number;
@@ -18,13 +18,13 @@ export function transfromDs(
   compraItems: CompraItem[],
   materiales: Material[],
   micros: Micro
-): DocumentoSoporte[] {
+): DocumentoSoporte {
   const productos = compraItems.map((item): Products => {
     const material = materiales.find(
       (material) => material.mat_id === item.citem_material
     );
     return {
-      codigo: material?.mat_codigo || "",
+      codigo: agregarEspacios(material?.mat_codigo || ""),
       cantidad: item.citem_cantidad,
       precio: item.citem_valor_unitario,
       empresa: material?.emp_id_fk,
@@ -46,12 +46,10 @@ export function transfromDs(
     [[], []]
   );
 
-  return [
-    {
-      proveedor_id: compra.comp_asociado,
-      micro_id: String(micros.mic_nom) || "",
-      corprecam: corprecam,
-      reciclemos: reciclemos,
-    },
-  ];
+  return {
+    proveedor_id: agregarEspacios(compra.com_proveedor),
+    micro_id: String(micros.mic_nom) || "",
+    corprecam: corprecam,
+    reciclemos: reciclemos,
+  };
 }

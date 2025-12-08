@@ -1,4 +1,4 @@
-import { firefox, type Page } from "@playwright/test";
+import { firefox, type Page, type Browser } from "@playwright/test";
 
 async function launchBrowser() {
   const browser = await firefox.launch({ headless: false });
@@ -9,7 +9,15 @@ async function launchBrowser() {
   return { browser, page };
 }
 
-async function login(page: Page, username: string, password: string) {
+async function login(
+  page: Page,
+  username: string,
+  password: string,
+  documentoSoporteLabelCode: string,
+  nit: string
+) {
+  console.log(username, password, documentoSoporteLabelCode, nit);
+
   await page.goto("https://siigonube.siigo.com/#/login");
   await page.waitForLoadState("domcontentloaded");
 
@@ -26,9 +34,7 @@ async function login(page: Page, username: string, password: string) {
   await page.getByRole("button", { name: "Ingresar" }).click();
 
   await page.waitForLoadState("networkidle");
-}
 
-async function navigateToDocumentoSoporte(page: Page, option: string) {
   await page.getByRole("button", { name: "Crear" }).waitFor();
   await page.getByRole("button", { name: "Crear" }).click();
 
@@ -38,10 +44,8 @@ async function navigateToDocumentoSoporte(page: Page, option: string) {
     .locator('span:has-text("Tipo ")')
     .locator("xpath=../..")
     .locator("select")
-    .selectOption(option);
-}
+    .selectOption(documentoSoporteLabelCode);
 
-async function selectProveedor(page: Page, nit: string) {
   const proveedorInput = page
     .locator('span:has-text("Proveedores")')
     .locator("xpath=../..")
@@ -59,17 +63,15 @@ async function selectProveedor(page: Page, nit: string) {
   const numero = rawText.split(" ")[0];
 
   await page.fill('input[placeholder="Consecutivo"]', numero);
-
-  return numero;
 }
 
-async function selectProducto(page: Page, nombre: string, codigo: string) {
+async function selectProducto(page: Page, codigo: string) {
   const input = page.locator(
     "#trEditRow #editProduct #autocomplete_autocompleteInput"
   );
 
   await input.click();
-  await input.fill(nombre);
+  await input.fill(codigo);
 
   await page.locator(".suggestions table.siigo-ac-table tr").first().waitFor();
 
@@ -101,25 +103,29 @@ async function selectBodega(page: Page, nombre: string) {
 
 async function llenarCantidadValor(
   page: Page,
-  cantidad: string,
-  valor: string
+  cantidad: Number,
+  valor: Number
 ) {
   const inputCantidad = page.locator(
     'siigo-inputdecimal[formcontrolname="editQuantity"] input.dx-texteditor-input'
   );
   await inputCantidad.waitFor();
-  await inputCantidad.fill(cantidad);
+  await inputCantidad.fill(cantidad.toString());
 
   const inputValor = page.locator(
     'siigo-inputdecimal[formcontrolname="editUnitValue"] input.dx-texteditor-input'
   );
   await inputValor.waitFor();
-  await inputValor.fill(valor);
+  await inputValor.fill(valor.toString());
 
   await page.click("#trShowNewRow");
 }
 
-async function seleccionarCuentaContable(page: Page, cuentaNombre: string) {
+async function seleccionarPago(
+  page: Page,
+  cuentaNombre: string,
+  browser: Browser
+) {
   const dropdownAcc = page.locator("#editingAcAccount_autocompleteInput");
 
   await dropdownAcc.waitFor();
@@ -132,15 +138,16 @@ async function seleccionarCuentaContable(page: Page, cuentaNombre: string) {
       `.suggestions .siigo-ac-table tr:has(div:has-text("${cuentaNombre}"))`
     )
     .click();
+
+  //out
+  await page.close();
 }
 
 export {
   launchBrowser,
   login,
-  navigateToDocumentoSoporte,
-  selectProveedor,
   selectProducto,
   selectBodega,
   llenarCantidadValor,
-  seleccionarCuentaContable,
+  seleccionarPago,
 };

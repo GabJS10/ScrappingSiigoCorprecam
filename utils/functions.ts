@@ -1,4 +1,4 @@
-import { firefox, type Page, type Browser } from "@playwright/test";
+import { firefox, type Page, type Browser, expect } from "@playwright/test";
 
 async function launchBrowser() {
   const browser = await firefox.launch({ headless: false });
@@ -19,7 +19,7 @@ async function login(
   console.log(username, password, documentoSoporteLabelCode, nit);
 
   await page.goto("https://siigonube.siigo.com/#/login");
-  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
 
   const usernameInput = page.locator("#siigoSignInName");
   const passwordInput = page.locator("#siigoPassword");
@@ -29,11 +29,11 @@ async function login(
 
   await page.click('button[type="button"]');
 
-  await page.waitForLoadState("networkidle", { timeout: 60000 });
+  await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
   await page.getByRole("button", { name: "Ingresar" }).waitFor();
   await page.getByRole("button", { name: "Ingresar" }).click();
 
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
 
   await page.getByRole("button", { name: "Crear" }).waitFor();
   await page.getByRole("button", { name: "Crear" }).click();
@@ -53,9 +53,13 @@ async function login(
     .first();
 
   await proveedorInput.click();
-  await proveedorInput.fill(nit);
 
   await page.locator(".suggestions tr").first().waitFor();
+
+  await proveedorInput.pressSequentially(nit);
+
+  await page.locator(".suggestions tr", { hasText: nit }).first().waitFor();
+
   await page.locator(".suggestions tr", { hasText: nit }).first().click();
 
   // Leer consecutivo
@@ -66,18 +70,25 @@ async function login(
 }
 
 async function selectProducto(page: Page, codigo: string) {
+  // Ya sabemos que está visible gracias a prepararNuevaFila,
+  // pero mantenemos el selector robusto
   const input = page.locator(
     "#trEditRow #editProduct #autocomplete_autocompleteInput"
   );
 
   await input.click();
-  await input.fill(codigo);
+  await input.clear(); // Limpiamos cualquier basura anterior
 
-  await page.locator(".suggestions table.siigo-ac-table tr").first().waitFor();
+  // Escribimos despacio para que Angular detecte las teclas
+  await input.pressSequentially(codigo, { delay: 150 });
 
+  // Esperamos sugerencias
+  await page.locator(".siigo-ac-table tr").first().waitFor();
+
+  // Seleccionamos
   await page
     .locator(".siigo-ac-table tr", {
-      has: page.locator(`div:text("${codigo}")`),
+      has: page.locator(`div:text-is("${codigo}")`),
     })
     .first()
     .click();
@@ -89,7 +100,6 @@ async function selectBodega(page: Page, nombre: string) {
   );
 
   await input.click();
-  await input.fill(nombre);
 
   await page.locator(".suggestions table.siigo-ac-table tr").first().waitFor();
 
@@ -101,34 +111,91 @@ async function selectBodega(page: Page, nombre: string) {
     .click();
 }
 
+export async function prepararNuevaFila(page: Page) {
+  const inputBusqueda = page.locator(
+    "#trEditRow #editProduct #autocomplete_autocompleteInput"
+  );
+  const botonAgregar = page.locator("#new-item, #new-item-text").first();
+
+  // Paso 1: Verificamos si el input YA está visible y listo.
+  if (await inputBusqueda.isVisible()) {
+    // Si está visible, verificamos que no esté inhabilitado
+    if (await inputBusqueda.isEnabled()) {
+      return; // Todo listo, no hacemos nada
+    }
+  }
+
+  // Paso 2: Si el input está oculto o no existe, significa que la fila no se abrió.
+  // Hacemos clic en el botón para abrirla.
+  console.log("Input oculto o no listo. Forzando apertura de nueva fila...");
+
+  // Aseguramos que el botón de agregar esté visible antes de clickear
+  if (await botonAgregar.isVisible()) {
+    await botonAgregar.click({ force: true });
+  }
+
+  // Paso 3: Esperamos explícitamente a que el input aparezca tras el clic
+  try {
+    await inputBusqueda.waitFor({ state: "visible", timeout: 10000 });
+  } catch (e) {
+    // Si falla, a veces ayuda un segundo clic de seguridad (doble check)
+    console.log("Reintentando clic en agregar ítem...");
+    await botonAgregar.click({ force: true });
+    await inputBusqueda.waitFor({ state: "visible", timeout: 10000 });
+  }
+}
+
 async function llenarCantidadValor(
   page: Page,
-  cantidad: Number,
-  valor: Number
+  cantidad: number,
+  valor: number
 ) {
+  // 1. Definimos los inputs
   const inputCantidad = page.locator(
     'siigo-inputdecimal[formcontrolname="editQuantity"] input.dx-texteditor-input'
   );
-  await inputCantidad.waitFor();
-  await inputCantidad.fill(cantidad.toString());
-
   const inputValor = page.locator(
     'siigo-inputdecimal[formcontrolname="editUnitValue"] input.dx-texteditor-input'
   );
-  await inputValor.waitFor();
+
+  // 2. Esperamos que el input de cantidad esté visible y limpio (listo para escribir)
+  await inputCantidad.waitFor({ state: "visible" });
+  await inputCantidad.fill(cantidad.toString());
+
+  // 3. Llenamos el valor
   await inputValor.fill(valor.toString());
 
-  await page.click("#trShowNewRow");
+  // 4. CLICK EN AGREGAR (Aquí estaba tu error de sintaxis)
+  // Usamos getByText o el ID directo. Es mucho más limpio y no falla el parser.
+  // Primero intentamos por ID, si no, busca por texto.
+  const botonAgregar = page
+    .locator("#new-item")
+    .or(page.getByText("Agregar otro ítem"))
+    .first();
+
+  await botonAgregar.waitFor({ state: "visible" });
+  await botonAgregar.click({ force: true });
+
+  // 5. EL PASO CLAVE PARA QUE FUNCIONE EL LOOP:
+  // Esperamos a que el input de cantidad DESAPAREZCA o SE LIMPIE.
+  // Esto confirma que Siigo "tragó" la línea y está reseteando la fila para el siguiente producto.
+  // Sin esto, el siguiente ciclo intenta escribir mientras el input sigue lleno.
+
+  // Opción A: Esperar a que el valor sea vacío (Si Siigo limpia el input)
+  await expect(inputCantidad)
+    .toHaveValue("", { timeout: 10000 })
+    .catch(() => {
+      console.log("El input no se limpió automáticamente, forzando espera...");
+    });
+
+  // Opción B (Más segura en Siigo): Esperar un pequeño respiro del DOM
+  await page.waitForTimeout(1000);
 }
 
-async function seleccionarPago(
-  page: Page,
-  cuentaNombre: string,
-  browser: Browser
-) {
+async function seleccionarPago(page: Page, cuentaNombre: string) {
   const dropdownAcc = page.locator("#editingAcAccount_autocompleteInput");
 
-  await dropdownAcc.waitFor();
+  await dropdownAcc.waitFor({ timeout: 10000 });
   await dropdownAcc.click();
 
   await page.locator(".suggestions .siigo-ac-table").first().waitFor();

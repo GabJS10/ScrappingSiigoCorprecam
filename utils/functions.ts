@@ -14,7 +14,8 @@ async function login(
   username: string,
   password: string,
   documentoSoporteLabelCode: string,
-  nit: string
+  nit: string,
+  nit_empresa: string
 ) {
   console.log(username, password, documentoSoporteLabelCode, nit);
 
@@ -30,22 +31,33 @@ async function login(
   await page.click('button[type="button"]');
 
   await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
-  await page.getByRole("button", { name: "Ingresar" }).waitFor();
-  await page.getByRole("button", { name: "Ingresar" }).click();
+
+  await page
+    .locator("tr", { hasText: nit_empresa })
+    .locator("button", { hasText: "Ingresar" })
+    .waitFor();
+
+  await page
+    .locator("tr", { hasText: nit_empresa })
+    .locator("button", { hasText: "Ingresar" })
+    .click();
 
   await page.waitForLoadState("domcontentloaded", { timeout: 60000 });
 
   await page.getByRole("button", { name: "Crear" }).waitFor();
   await page.getByRole("button", { name: "Crear" }).click();
 
+  await page.locator('a[data-value="Documento soporte"]').waitFor();
+
   await page.locator('a[data-value="Documento soporte"]').click();
 
-  await page
-    .locator('span:has-text("Tipo ")')
-    .locator("xpath=../..")
-    .locator("select")
-    .selectOption(documentoSoporteLabelCode);
-
+  if (nit_empresa === "900142913") {
+    await page
+      .locator('span:has-text("Tipo ")')
+      .locator("xpath=../..")
+      .locator("select")
+      .selectOption(documentoSoporteLabelCode);
+  }
   const proveedorInput = page
     .locator('span:has-text("Proveedores")')
     .locator("xpath=../..")
@@ -86,6 +98,13 @@ async function selectProducto(page: Page, codigo: string) {
   await page.locator(".siigo-ac-table tr").first().waitFor();
 
   // Seleccionamos
+  await page
+    .locator(".siigo-ac-table tr", {
+      has: page.locator(`div:text-is("${codigo}")`),
+    })
+    .first()
+    .waitFor();
+
   await page
     .locator(".siigo-ac-table tr", {
       has: page.locator(`div:text-is("${codigo}")`),

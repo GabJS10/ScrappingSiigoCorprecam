@@ -9,6 +9,7 @@ import {
 } from "../types/types.ts";
 import { agregarEspacios } from "./agregarEspacios.ts";
 import {
+  launchBrowser,
   llenarCantidadValor,
   login,
   prepararNuevaFila,
@@ -17,6 +18,7 @@ import {
   selectProducto,
 } from "./functions.ts";
 import { config } from "../config.ts";
+
 interface Products {
   codigo: string;
   cantidad: number;
@@ -66,24 +68,33 @@ export function transfromDs(
 }
 
 export async function playwright_corprecam_reciclemos(
-  page: Page,
   documentoSoporte: P[],
   documentoSoporteLabelCode: string,
   bodegaRiohacha: string,
   cuentaContable: string,
   proveedor_id: string,
   USER: string,
-  PASSWORD: string
+  PASSWORD: string,
+  nit_empresa: string
 ) {
+  const { page } = await launchBrowser();
+
   if (documentoSoporte.length > 0) {
-    await login(page, USER, PASSWORD, documentoSoporteLabelCode, proveedor_id);
+    await login(
+      page,
+      USER,
+      PASSWORD,
+      documentoSoporteLabelCode,
+      proveedor_id,
+      nit_empresa
+    );
 
     for (let i = 0; i < documentoSoporte.length; i++) {
       await prepararNuevaFila(page);
 
       await selectProducto(page, documentoSoporte[i].codigo);
 
-      if (i === 0) {
+      if (i === 0 && nit_empresa === "900142913") {
         await selectBodega(page, bodegaRiohacha);
       }
 

@@ -7,35 +7,35 @@ const documentoSoporteLabelCode = "25470";
 
 const bodegaRiohacha = " BODEGA DE RIOHACHA ";
 
-const cuentaContable = " CAJA RIOHACHA ";
-
+const cuentaContableCorprecam = " CAJA RIOHACHA ";
+const cuentaContableReciclemos = " Efectivo ";
 export async function run_playwright(documentoSoporte: DocumentoSoporte) {
-  const { page } = await launchBrowser();
-
   console.log(documentoSoporte.corprecam);
   console.log(documentoSoporte.reciclemos);
 
-  await playwright_corprecam_reciclemos(
-    page,
-    documentoSoporte.corprecam,
-    documentoSoporteLabelCode,
-    bodegaRiohacha,
-    cuentaContable,
-    documentoSoporte.proveedor_id,
-    config.USER_SIIGO_CORPRECAM,
-    config.PASSWORD_SIIGO_CORPRECAM
-  );
+  if (documentoSoporte.corprecam.length > 0) {
+    await playwright_corprecam_reciclemos(
+      documentoSoporte.corprecam,
+      documentoSoporteLabelCode,
+      bodegaRiohacha,
+      cuentaContableCorprecam,
+      documentoSoporte.proveedor_id,
+      config.USER_SIIGO_CORPRECAM,
+      config.PASSWORD_SIIGO_CORPRECAM,
+      "900142913"
+    );
+  }
 
-  /*
-  await playwright_corprecam_reciclemos(
-    page,
-    documentoSoporte.reciclemos,
-    documentoSoporteLabelCode,
-    bodegaRiohacha,
-    cuentaContable,
-    documentoSoporte.proveedor_id,
-    config.USER_SIIGO_RECICLEMOS,
-    config.PASSWORD_SIIGO_RECICLEMOS
-  );
-   */
+  if (documentoSoporte.reciclemos.length > 0) {
+    await playwright_corprecam_reciclemos(
+      documentoSoporte.reciclemos,
+      documentoSoporteLabelCode,
+      bodegaRiohacha,
+      cuentaContableReciclemos,
+      documentoSoporte.proveedor_id,
+      config.USER_SIIGO_CORPRECAM,
+      config.PASSWORD_SIIGO_CORPRECAM,
+      "901328575"
+    );
+  }
 }
